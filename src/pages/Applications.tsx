@@ -12,6 +12,7 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
+
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -32,6 +33,7 @@ import {
   Bell,
   CheckCircle,
   Circle,
+  MoreHorizontal,
 } from "lucide-react";
 import axios from "@/utils/axiosConfig.js";
 
@@ -63,6 +65,16 @@ const Applications = () => {
     dueDate: "",
   });
 
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+
+  const statusOptions = [
+    { value: "applied", label: "Applied" },
+    { value: "under review", label: "Under Review" },
+    { value: "interview scheduled", label: "Interview Scheduled" },
+    { value: "offered", label: "Offered" },
+    { value: "rejected", label: "Rejected" },
+  ];
+
   const fetchApplications = async () => {
     try {
       const res = await axios.get("/user/applications/");
@@ -79,6 +91,19 @@ const Applications = () => {
       await fetchApplications();
     } catch (err) {
       console.error("Failed to create application", err);
+    }
+  };
+
+  const updateApplicationStatus = async (applicationId: string, newStatus: string) => {
+    try {
+      await axios.put("/user/applications/", {
+        applicationId,
+        currentStatus: newStatus,
+      });
+      setActiveDropdown(null); // Close dropdown after update
+      await fetchApplications();
+    } catch (err) {
+      console.error("Failed to update application status", err);
     }
   };
 
@@ -219,7 +244,17 @@ const Applications = () => {
 
   useEffect(() => {
     fetchApplications();
-  }, []);
+    
+    // Close dropdown when clicking outside
+    const handleClickOutside = (event: MouseEvent) => {
+      if (activeDropdown && !(event.target as Element).closest('.relative')) {
+        setActiveDropdown(null);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDropdown]);
 
   return (
     <Layout>
@@ -273,8 +308,6 @@ const Applications = () => {
             </DialogContent>
           </Dialog>
         </div>
-
-       
 
         {/* Table */}
         <Tabs defaultValue="table" className="space-y-4">
@@ -351,6 +384,35 @@ const Applications = () => {
                               >
                                 <Bell className="w-4 h-4" />
                               </Button>
+                              <div className="relative">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setActiveDropdown(activeDropdown === app._id ? null : app._id)}
+                                >
+                                  <MoreHorizontal className="w-4 h-4" />
+                                </Button>
+                                {activeDropdown === app._id && (
+                                  <div className="absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg z-10 min-w-[140px]">
+                                    <div className="py-1">
+                                      {statusOptions.map((status) => (
+                                        <button
+                                          key={status.value}
+                                          onClick={() => updateApplicationStatus(app._id, status.value)}
+                                          className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center justify-between ${
+                                            app.currentStatus === status.value ? "bg-gray-50" : ""
+                                          }`}
+                                        >
+                                          {status.label}
+                                          {app.currentStatus === status.value && (
+                                            <CheckCircle className="w-4 h-4 text-green-500" />
+                                          )}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </TableCell>
                         </TableRow>

@@ -21,9 +21,7 @@ const Profile = () => {
   // Form states
   const [personalInfo, setPersonalInfo] = useState({
     name: "",
-    email: "",
-    phone: "",
-    location: ""
+    email: ""
   });
   
   const [professionalInfo, setProfessionalInfo] = useState({
@@ -32,6 +30,22 @@ const Profile = () => {
     expectedSalary: "",
     workMode: ""
   });
+
+  // Job preferences state
+  const [jobPreferences, setJobPreferences] = useState({
+    titles: [],
+    locations: [],
+    jobType: "",
+    industries: [],
+    expectedSalary: "",
+    workMode: "",
+    relocate: false
+  });
+
+  // Additional states for managing arrays
+  const [newJobTitle, setNewJobTitle] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newIndustry, setNewIndustry] = useState("");
   
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState("");
@@ -46,12 +60,10 @@ const Profile = () => {
       
       setUser(userData);
       
-      // Update personal info - handle missing fields gracefully
+      // Update personal info
       setPersonalInfo({
         name: userData.name || "",
-        email: userData.email || "",
-        phone: userData.phone || "", // Add phone to your user model if needed
-        location: userData.location || "" // Add location to your user model if needed
+        email: userData.email || ""
       });
       
       // Update professional info - get from experience array if available
@@ -64,6 +76,17 @@ const Profile = () => {
         yearsOfExperience: latestExperience.yearsOfExperience?.toString() || "",
         expectedSalary: userData.jobPreferences?.expectedSalary || "",
         workMode: userData.jobPreferences?.workMode || ""
+      });
+
+      // Update job preferences
+      setJobPreferences({
+        titles: userData.jobPreferences?.titles || [],
+        locations: userData.jobPreferences?.locations || [],
+        jobType: userData.jobPreferences?.jobType || "",
+        industries: userData.jobPreferences?.industries || [],
+        expectedSalary: userData.jobPreferences?.expectedSalary || "",
+        workMode: userData.jobPreferences?.workMode || "",
+        relocate: userData.jobPreferences?.relocate || false
       });
       
       // Update skills
@@ -131,11 +154,6 @@ const Profile = () => {
   // Update job preferences
   const updateJobPreferences = async () => {
     try {
-      const jobPreferences = {
-        expectedSalary: professionalInfo.expectedSalary,
-        workMode: professionalInfo.workMode
-      };
-      
       await axios.post('/user/job-preferences', { jobPreferences });
       console.log('Job preferences updated successfully');
     } catch (error) {
@@ -156,6 +174,58 @@ const Profile = () => {
     } catch (error) {
       console.error('Error updating experience:', error);
     }
+  };
+
+  // Job preference management functions
+  const addJobTitle = () => {
+    if (newJobTitle.trim() && !jobPreferences.titles.includes(newJobTitle.trim())) {
+      setJobPreferences({
+        ...jobPreferences,
+        titles: [...jobPreferences.titles, newJobTitle.trim()]
+      });
+      setNewJobTitle("");
+    }
+  };
+
+  const removeJobTitle = (titleToRemove) => {
+    setJobPreferences({
+      ...jobPreferences,
+      titles: jobPreferences.titles.filter(title => title !== titleToRemove)
+    });
+  };
+
+  const addLocation = () => {
+    if (newLocation.trim() && !jobPreferences.locations.includes(newLocation.trim())) {
+      setJobPreferences({
+        ...jobPreferences,
+        locations: [...jobPreferences.locations, newLocation.trim()]
+      });
+      setNewLocation("");
+    }
+  };
+
+  const removeLocation = (locationToRemove) => {
+    setJobPreferences({
+      ...jobPreferences,
+      locations: jobPreferences.locations.filter(location => location !== locationToRemove)
+    });
+  };
+
+  const addIndustry = () => {
+    if (newIndustry.trim() && !jobPreferences.industries.includes(newIndustry.trim())) {
+      setJobPreferences({
+        ...jobPreferences,
+        industries: [...jobPreferences.industries, newIndustry.trim()]
+      });
+      setNewIndustry("");
+    }
+  };
+
+  const removeIndustry = (industryToRemove) => {
+    setJobPreferences({
+      ...jobPreferences,
+      industries: jobPreferences.industries.filter(industry => industry !== industryToRemove)
+    });
   };
 
   // Add skill
@@ -264,10 +334,10 @@ const Profile = () => {
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyPress = (e, action) => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      addSkill();
+      action();
     }
   };
 
@@ -316,24 +386,6 @@ const Profile = () => {
                   onChange={(e) => setPersonalInfo({...personalInfo, email: e.target.value})}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input 
-                  id="phone" 
-                  value={personalInfo.phone}
-                  onChange={(e) => setPersonalInfo({...personalInfo, phone: e.target.value})}
-                  placeholder="Add phone number"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
-                <Input 
-                  id="location" 
-                  value={personalInfo.location}
-                  onChange={(e) => setPersonalInfo({...personalInfo, location: e.target.value})}
-                  placeholder="Add your location"
-                />
-              </div>
             </CardContent>
           </Card>
 
@@ -377,16 +429,122 @@ const Profile = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Job Preferences Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Job Preferences</CardTitle>
+            <CardDescription>Define your job search preferences and requirements</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Preferred Job Titles */}
+            <div className="space-y-3">
+              <Label>Preferred Job Titles</Label>
+              <div className="flex flex-wrap gap-2">
+                {jobPreferences.titles.map((title) => (
+                  <Badge key={title} variant="secondary" className="flex items-center gap-1">
+                    {title}
+                    <button onClick={() => removeJobTitle(title)} className="ml-1">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a job title"
+                  value={newJobTitle}
+                  onChange={(e) => setNewJobTitle(e.target.value)}
+                  onKeyPress={(e) => handleKeyPress(e, addJobTitle)}
+                />
+                <Button onClick={addJobTitle}>Add</Button>
+              </div>
+            </div>
+
+            {/* Preferred Locations */}
+            <div className="space-y-3">
+              <Label>Preferred Locations</Label>
+              <div className="flex flex-wrap gap-2">
+                {jobPreferences.locations.map((location) => (
+                  <Badge key={location} variant="secondary" className="flex items-center gap-1">
+                    {location}
+                    <button onClick={() => removeLocation(location)} className="ml-1">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add a location"
+                  value={newLocation}
+                  onChange={(e) => setNewLocation(e.target.value)}
+                  onKeyPress={(e) => handleKeyPress(e, addLocation)}
+                />
+                <Button onClick={addLocation}>Add</Button>
+              </div>
+            </div>
+
+            {/* Industries */}
+            <div className="space-y-3">
+              <Label>Preferred Industries</Label>
+              <div className="flex flex-wrap gap-2">
+                {jobPreferences.industries.map((industry) => (
+                  <Badge key={industry} variant="secondary" className="flex items-center gap-1">
+                    {industry}
+                    <button onClick={() => removeIndustry(industry)} className="ml-1">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add an industry"
+                  value={newIndustry}
+                  onChange={(e) => setNewIndustry(e.target.value)}
+                  onKeyPress={(e) => handleKeyPress(e, addIndustry)}
+                />
+                <Button onClick={addIndustry}>Add</Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Job Type */}
+              <div className="space-y-2">
+                <Label htmlFor="jobType">Job Type</Label>
+                <Select 
+                  value={jobPreferences.jobType}
+                  onValueChange={(value) => setJobPreferences({...jobPreferences, jobType: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select job type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="full-time">Full-time</SelectItem>
+                    <SelectItem value="part-time">Part-time</SelectItem>
+                    <SelectItem value="contract">Contract</SelectItem>
+                    <SelectItem value="freelance">Freelance</SelectItem>
+                    <SelectItem value="internship">Internship</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Salary Range */}
               <div className="space-y-2">
                 <Label htmlFor="salaryRange">Desired Salary Range</Label>
                 <Select 
-                  value={professionalInfo.expectedSalary}
-                  onValueChange={(value) => setProfessionalInfo({...professionalInfo, expectedSalary: value})}
+                  value={jobPreferences.expectedSalary}
+                  onValueChange={(value) => setJobPreferences({...jobPreferences, expectedSalary: value})}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select salary range" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="30-50k">$30k - $50k</SelectItem>
                     <SelectItem value="50-70k">$50k - $70k</SelectItem>
                     <SelectItem value="70-90k">$70k - $90k</SelectItem>
                     <SelectItem value="90-120k">$90k - $120k</SelectItem>
@@ -395,14 +553,16 @@ const Profile = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Work Mode */}
               <div className="space-y-2">
-                <Label htmlFor="workType">Work Type Preference</Label>
+                <Label htmlFor="workType">Work Mode Preference</Label>
                 <Select 
-                  value={professionalInfo.workMode}
-                  onValueChange={(value) => setProfessionalInfo({...professionalInfo, workMode: value})}
+                  value={jobPreferences.workMode}
+                  onValueChange={(value) => setJobPreferences({...jobPreferences, workMode: value})}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select work type" />
+                    <SelectValue placeholder="Select work mode" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="remote">Remote</SelectItem>
@@ -412,9 +572,26 @@ const Profile = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+
+            {/* Relocation Willingness */}
+            <div className="space-y-2">
+              <Label>Relocation Willingness</Label>
+              <Select 
+                value={jobPreferences.relocate ? "yes" : "no"}
+                onValueChange={(value) => setJobPreferences({...jobPreferences, relocate: value === "yes"})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select relocation preference" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="yes">Yes, willing to relocate</SelectItem>
+                  <SelectItem value="no">No, prefer current location</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Skills Section */}
         <Card>
@@ -438,7 +615,7 @@ const Profile = () => {
                 placeholder="Add a skill"
                 value={newSkill}
                 onChange={(e) => setNewSkill(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyPress={(e) => handleKeyPress(e, addSkill)}
               />
               <Button onClick={addSkill}>Add</Button>
             </div>
@@ -577,7 +754,7 @@ const Profile = () => {
                       }
                     }}
                   />
-                  <p className="mt-2 text-sm text-gray-5 00">PDF, DOC, DOCX up to 5MB</p>
+                  <p className="mt-2 text-sm text-gray-500">PDF, DOC, DOCX up to 5MB</p>
                 </div>
               </div>
               

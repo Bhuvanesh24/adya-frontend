@@ -455,9 +455,6 @@ const JobSearch = () => {
                 )}
                 Search Jobs
               </Button>
-              <Button variant="outline" onClick={saveSearchPreferences}>
-                Save as Preferences
-              </Button>
             </div>
           </CardContent>
         </Card>
