@@ -8,13 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Upload, X, FileText, Download, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import axios from "@/utils/axiosConfig";
 
 const Profile = () => {
-  // Backend URL configuration
-  const API_BASE_URL = process.env.NODE_ENV === 'production' 
-    ? 'https://your-backend-domain.com' 
-    : 'http://localhost:5000';
-  
   // State for user data
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -45,32 +41,43 @@ const Profile = () => {
   // Fetch user profile data
   const fetchUserProfile = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/`, {
-        credentials: 'include'
+      const response = await axios.get('/user/');
+      const userData = response.data.user;
+      
+      setUser(userData);
+      
+      // Update personal info - handle missing fields gracefully
+      setPersonalInfo({
+        name: userData.name || "",
+        email: userData.email || "",
+        phone: userData.phone || "", // Add phone to your user model if needed
+        location: userData.location || "" // Add location to your user model if needed
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        const userData = data.user;
-        
-        setUser(userData);
-        setPersonalInfo({
-          name: userData.name || "",
-          email: userData.email || "",
-          phone: userData.phone || "",
-          location: userData.location || ""
-        });
-        
-        setProfessionalInfo({
-          jobTitle: userData.jobTitle || "",
-          yearsOfExperience: userData.yearsOfExperience || "",
-          expectedSalary: userData.jobPreferences?.expectedSalary || "",
-          workMode: userData.jobPreferences?.workMode || ""
-        });
-        
-        setSkills(userData.skills || []);
-        setProfessionalSummary(userData.professionalSummary || "");
-      }
+      // Update professional info - get from experience array if available
+      const latestExperience = userData.experience && userData.experience.length > 0 
+        ? userData.experience[userData.experience.length - 1] 
+        : {};
+      
+      setProfessionalInfo({
+        jobTitle: latestExperience.jobTitle || "",
+        yearsOfExperience: latestExperience.yearsOfExperience?.toString() || "",
+        expectedSalary: userData.jobPreferences?.expectedSalary || "",
+        workMode: userData.jobPreferences?.workMode || ""
+      });
+      
+      // Update skills
+      setSkills(userData.skills || []);
+      
+      // Update professional summary
+      setProfessionalSummary(userData.professionalSummary || "");
+      
+      // Update documents
+      setDocuments({
+        resumes: userData.resumes || [],
+        coverLetters: userData.coverLetters || []
+      });
+      
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -78,46 +85,32 @@ const Profile = () => {
     }
   };
 
-  // Fetch user documents
+  // Fetch user documents - if you have a separate endpoint
   const fetchDocuments = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/documents`, {
-        credentials: 'include'
+      const response = await axios.get('/user/documents');
+      setDocuments({
+        resumes: response.data.resumes || [],
+        coverLetters: response.data.coverLetters || []
       });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setDocuments({
-          resumes: data.resumes || [],
-          coverLetters: data.coverLetters || []
-        });
-      }
     } catch (error) {
       console.error('Error fetching documents:', error);
+      // Don't reset documents on error, keep what we have from user profile
     }
   };
 
   useEffect(() => {
     fetchUserProfile();
-    fetchDocuments();
+    // Only fetch documents if you have a separate endpoint
+    // fetchDocuments();
   }, []);
 
   // Update personal information
   const updatePersonalInfo = async () => {
     try {
       setSaving(true);
-      const response = await fetch(`${API_BASE_URL}/api/user/personal-info`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(personalInfo)
-      });
-      
-      if (response.ok) {
-        console.log('Personal info updated successfully');
-      }
+      await axios.post('/user/personal-info', personalInfo);
+      console.log('Personal info updated successfully');
     } catch (error) {
       console.error('Error updating personal info:', error);
     } finally {
@@ -128,18 +121,8 @@ const Profile = () => {
   // Update professional summary
   const updateProfessionalSummary = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/user/professional-summary`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ professionalSummary })
-      });
-      
-      if (response.ok) {
-        console.log('Professional summary updated successfully');
-      }
+      await axios.post('/user/professional-summary', { professionalSummary });
+      console.log('Professional summary updated successfully');
     } catch (error) {
       console.error('Error updating professional summary:', error);
     }
@@ -153,20 +136,25 @@ const Profile = () => {
         workMode: professionalInfo.workMode
       };
       
-      const response = await fetch(`${API_BASE_URL}/api/user/job-preferences`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ jobPreferences })
-      });
-      
-      if (response.ok) {
-        console.log('Job preferences updated successfully');
-      }
+      await axios.post('/user/job-preferences', { jobPreferences });
+      console.log('Job preferences updated successfully');
     } catch (error) {
       console.error('Error updating job preferences:', error);
+    }
+  };
+
+  // Update experience
+  const updateExperience = async () => {
+    try {
+      const experienceData = {
+        jobTitle: professionalInfo.jobTitle,
+        yearsOfExperience: parseInt(professionalInfo.yearsOfExperience) || 0
+      };
+      
+      await axios.post('/user/experience', experienceData);
+      console.log('Experience updated successfully');
+    } catch (error) {
+      console.error('Error updating experience:', error);
     }
   };
 
@@ -174,20 +162,9 @@ const Profile = () => {
   const addSkill = async () => {
     if (newSkill.trim() && !skills.includes(newSkill.trim())) {
       try {
-        const response = await fetch('/api/user/skills/add', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ skill: newSkill.trim() })
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setSkills(data.skills);
-          setNewSkill("");
-        }
+        const response = await axios.post('/user/skills/add', { skill: newSkill.trim() });
+        setSkills(response.data.skills);
+        setNewSkill("");
       } catch (error) {
         console.error('Error adding skill:', error);
       }
@@ -197,19 +174,8 @@ const Profile = () => {
   // Remove skill
   const removeSkill = async (skillToRemove) => {
     try {
-      const response = await fetch('/api/user/skills/remove', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ skill: skillToRemove })
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setSkills(data.skills);
-      }
+      const response = await axios.post('/user/skills/remove', { skill: skillToRemove });
+      setSkills(response.data.skills);
     } catch (error) {
       console.error('Error removing skill:', error);
     }
@@ -227,15 +193,14 @@ const Profile = () => {
         setUploadingCoverLetter(true);
       }
       
-      const response = await fetch(`/api/user/upload/${type === 'resume' ? 'resume' : 'cover-letter'}`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData
+      await axios.post(`/user/upload/${type === 'resume' ? 'resume' : 'cover-letter'}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
       
-      if (response.ok) {
-        fetchDocuments(); // Refresh documents list
-      }
+      // Refresh user data to get updated documents
+      fetchUserProfile();
     } catch (error) {
       console.error(`Error uploading ${type}:`, error);
     } finally {
@@ -250,26 +215,18 @@ const Profile = () => {
   // Download file
   const downloadFile = async (filePath, fileName) => {
     try {
-      const response = await fetch('/api/user/download/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ filePath })
+      const response = await axios.post('/user/download/', { filePath }, {
+        responseType: 'blob',
       });
       
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-      }
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
     } catch (error) {
       console.error('Error downloading file:', error);
     }
@@ -278,18 +235,11 @@ const Profile = () => {
   // Delete file
   const deleteFile = async (filePath, type) => {
     try {
-      const response = await fetch(`/api/user/${type}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ filePath })
+      await axios.delete(`/user/${type}`, {
+        data: { filePath }
       });
-      
-      if (response.ok) {
-        fetchDocuments(); // Refresh documents list
-      }
+      // Refresh user data to get updated documents
+      fetchUserProfile();
     } catch (error) {
       console.error(`Error deleting ${type}:`, error);
     }
@@ -302,7 +252,8 @@ const Profile = () => {
       await Promise.all([
         updatePersonalInfo(),
         updateProfessionalSummary(),
-        updateJobPreferences()
+        updateJobPreferences(),
+        updateExperience()
       ]);
       alert('All changes saved successfully!');
     } catch (error) {
@@ -371,6 +322,7 @@ const Profile = () => {
                   id="phone" 
                   value={personalInfo.phone}
                   onChange={(e) => setPersonalInfo({...personalInfo, phone: e.target.value})}
+                  placeholder="Add phone number"
                 />
               </div>
               <div className="space-y-2">
@@ -379,6 +331,7 @@ const Profile = () => {
                   id="location" 
                   value={personalInfo.location}
                   onChange={(e) => setPersonalInfo({...personalInfo, location: e.target.value})}
+                  placeholder="Add your location"
                 />
               </div>
             </CardContent>
@@ -397,6 +350,7 @@ const Profile = () => {
                   id="jobTitle" 
                   value={professionalInfo.jobTitle}
                   onChange={(e) => setProfessionalInfo({...professionalInfo, jobTitle: e.target.value})}
+                  placeholder="e.g., Software Engineer"
                 />
               </div>
               <div className="space-y-2">
@@ -409,11 +363,17 @@ const Profile = () => {
                     <SelectValue placeholder="Select experience level" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="0-1">0-1 years</SelectItem>
-                    <SelectItem value="2-3">2-3 years</SelectItem>
-                    <SelectItem value="4-6">4-6 years</SelectItem>
-                    <SelectItem value="7-10">7-10 years</SelectItem>
-                    <SelectItem value="10+">10+ years</SelectItem>
+                    <SelectItem value="0">0 years</SelectItem>
+                    <SelectItem value="1">1 year</SelectItem>
+                    <SelectItem value="2">2 years</SelectItem>
+                    <SelectItem value="3">3 years</SelectItem>
+                    <SelectItem value="4">4 years</SelectItem>
+                    <SelectItem value="5">5 years</SelectItem>
+                    <SelectItem value="6">6 years</SelectItem>
+                    <SelectItem value="7">7 years</SelectItem>
+                    <SelectItem value="8">8 years</SelectItem>
+                    <SelectItem value="9">9 years</SelectItem>
+                    <SelectItem value="10">10+ years</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -547,7 +507,9 @@ const Profile = () => {
                     <div className="flex items-center space-x-3">
                       <FileText className="w-5 h-5 text-blue-600" />
                       <div>
-                        <p className="font-medium">{resume.fileName}</p>
+                        <p className="font-medium">
+                          {typeof resume === 'string' ? resume.split('/').pop() : resume.fileName || 'Resume'}
+                        </p>
                         <p className="text-sm text-gray-500">
                           {resume.uploadedAt ? new Date(resume.uploadedAt).toLocaleDateString() : 'Unknown date'}
                         </p>
@@ -557,14 +519,20 @@ const Profile = () => {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => downloadFile(resume.filePath, resume.fileName)}
+                        onClick={() => downloadFile(
+                          typeof resume === 'string' ? resume : resume.filePath, 
+                          typeof resume === 'string' ? resume.split('/').pop() : resume.fileName
+                        )}
                       >
                         <Download className="w-4 h-4" />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => deleteFile(resume.filePath, 'resume')}
+                        onClick={() => deleteFile(
+                          typeof resume === 'string' ? resume : resume.filePath, 
+                          'resume'
+                        )}
                       >
                         <X className="w-4 h-4" />
                       </Button>
@@ -609,7 +577,7 @@ const Profile = () => {
                       }
                     }}
                   />
-                  <p className="mt-2 text-sm text-gray-500">PDF, DOC, DOCX up to 5MB</p>
+                  <p className="mt-2 text-sm text-gray-5 00">PDF, DOC, DOCX up to 5MB</p>
                 </div>
               </div>
               
@@ -619,7 +587,9 @@ const Profile = () => {
                     <div className="flex items-center space-x-3">
                       <FileText className="w-5 h-5 text-green-600" />
                       <div>
-                        <p className="font-medium">{coverLetter.fileName}</p>
+                        <p className="font-medium">
+                          {typeof coverLetter === 'string' ? coverLetter.split('/').pop() : coverLetter.fileName || 'Cover Letter'}
+                        </p>
                         <p className="text-sm text-gray-500">
                           {coverLetter.uploadedAt ? new Date(coverLetter.uploadedAt).toLocaleDateString() : 'Unknown date'}
                         </p>
@@ -629,14 +599,20 @@ const Profile = () => {
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => downloadFile(coverLetter.filePath, coverLetter.fileName)}
+                        onClick={() => downloadFile(
+                          typeof coverLetter === 'string' ? coverLetter : coverLetter.filePath, 
+                          typeof coverLetter === 'string' ? coverLetter.split('/').pop() : coverLetter.fileName
+                        )}
                       >
                         <Download className="w-4 h-4" />
                       </Button>
                       <Button 
                         variant="ghost" 
                         size="sm"
-                        onClick={() => deleteFile(coverLetter.filePath, 'cover-letter')}
+                        onClick={() => deleteFile(
+                          typeof coverLetter === 'string' ? coverLetter : coverLetter.filePath, 
+                          'cover-letter'
+                        )}
                       >
                         <X className="w-4 h-4" />
                       </Button>
