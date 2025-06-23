@@ -25,70 +25,43 @@ export const AuthProvider = ({ children }) => {
     checkAuthStatus();
   }, []);
 
-  const checkAuthStatus = async () => {
-    try {
-      console.log('Checking auth status...');
-      
-      const response = await axios.get('/auth/me');
-      
-      console.log('Auth check response:', response.data);
-      
-      if (response.data?.success && response.data?.user) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-        console.log('User authenticated:', response.data.user);
-      } else {
-        throw new Error('Invalid auth response');
-      }
-    } catch (error) {
-      console.error('Auth check failed:', error);
-      
-      // Clear auth state
+const checkAuthStatus = async () => {
+  try {
+    console.log('Checking auth status...');
+    const response = await axios.get('/auth/me');
+    console.log('Auth check response:', response.data);
+
+    if (response.data?.success && response.data?.user) {
+      setUser(response.data.user);
+      setIsAuthenticated(true);
+    }
+  } catch (error) {
+    console.error('Auth check failed:', error);
+    // Only reset state if explicitly logged out or token is invalid
+    if (error.response?.status === 401) {
       setUser(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('authToken');
-      
-      // Only show error if it's not a 401 (expected when not logged in)
-      if (error.response?.status !== 401) {
-        console.error('Unexpected auth check error:', error);
-      }
-    } finally {
-      setIsLoading(false);
     }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
 
-  const login = async (email, password) => {
-    try {
-      setIsLoading(true);
-      console.log('Attempting login for:', email);
+const login = async (email, password) => {
+  try {
+    setIsLoading(true);
+    const response = await axios.post('/auth/login', { email: email.trim(), password });
+    if (response.data?.success && response.data?.user) {
+      setUser(response.data.user);
+      setIsAuthenticated(true);
       
-      const response = await axios.post('/auth/login', { 
-        email: email.trim(), 
-        password 
-      });
-      
-      console.log('Login response:', response.data);
-      
-      if (response.data?.success && response.data?.user) {
-        setUser(response.data.user);
-        setIsAuthenticated(true);
-        
-        // Store token if provided
-        if (response.data.token) {
-          localStorage.setItem('authToken', response.data.token);
-        }
-        
-        toast({
-          title: "Success",
-          description: "Login successful!",
-        });
-        
-        return { success: true, user: response.data.user };
-      } else {
-        throw new Error(response.data?.message || 'Login failed');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
+      toast({ title: "Success", description: "Login successful!" });
+      return { success: true, user: response.data.user };
+    } else {
+      throw new Error(response.data?.message || 'Login failed');
+    }
+  } catch (error) {
+    console.error('Login error:', error);
       
       const errorMessage = error.response?.data?.message || 
                           error.message || 
@@ -101,10 +74,59 @@ export const AuthProvider = ({ children }) => {
       });
       
       return { success: false, message: errorMessage };
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+  // const login = async (email, password) => {
+  //   try {
+  //     setIsLoading(true);
+  //     console.log('Attempting login for:', email);
+      
+  //     const response = await axios.post('/auth/login', { 
+  //       email: email.trim(), 
+  //       password 
+  //     });
+      
+  //     console.log('Login response:', response.data);
+      
+  //     if (response.data?.success && response.data?.user) {
+  //       setUser(response.data.user);
+  //       setIsAuthenticated(true);
+        
+  //       // Store token if provided
+  //       if (response.data.token) {
+  //         localStorage.setItem('authToken', response.data.token);
+  //       }
+        
+  //       toast({
+  //         title: "Success",
+  //         description: "Login successful!",
+  //       });
+        
+  //       return { success: true, user: response.data.user };
+  //     } else {
+  //       throw new Error(response.data?.message || 'Login failed');
+  //     }
+  //   } catch (error) {
+  //     console.error('Login error:', error);
+      
+  //     const errorMessage = error.response?.data?.message || 
+  //                         error.message || 
+  //                         "Login failed. Please try again.";
+      
+  //     toast({
+  //       title: "Error",
+  //       description: errorMessage,
+  //       variant: "destructive",
+  //     });
+      
+  //     return { success: false, message: errorMessage };
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
 
   const signup = async (name, email, password) => {
     try {
@@ -162,7 +184,7 @@ export const AuthProvider = ({ children }) => {
       // Always clear local auth state
       setUser(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('authToken');
+      // localStorage.removeItem('authToken');
       
       toast({
         title: "Success",

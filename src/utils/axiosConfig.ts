@@ -52,7 +52,7 @@ axiosInstance.interceptors.response.use(
     });
 
     if (error.response?.status === 401 || error.response?.status === 403) {
-      localStorage.removeItem('authToken');
+      // localStorage.removeItem('authToken');
       // Optionally redirect to login
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';

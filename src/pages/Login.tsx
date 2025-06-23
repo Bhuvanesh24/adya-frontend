@@ -16,7 +16,7 @@ const Login = () => {
 
   const from = location.state?.from?.pathname || "/dashboard";
 
-  // Redirect if already authenticated
+  
   useEffect(() => {
     if (isAuthenticated) {
       navigate(from, { replace: true });
@@ -41,7 +41,6 @@ const Login = () => {
 
     try {
       const result = await login(email, password);
-      
       if (result.success) {
         console.log('Login successful, redirecting to:', from);
         navigate(from, { replace: true });

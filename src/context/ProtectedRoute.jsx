@@ -1,9 +1,11 @@
 // src/context/ProtectedRoute.jsx
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading, checkAuthStatus } = useAuth();
+  console.log('ProtectedRoute - isAuthenticated:', isAuthenticated, 'isLoading:', isLoading);
   const location = useLocation();
 
   useEffect(() => {
@@ -21,6 +23,7 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
+    use
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

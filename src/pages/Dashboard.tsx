@@ -31,16 +31,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await axios.get("/auth/me");
-        if (res.status === 200 && res.data.user) {
-          setUser(res.data.user);
-        }
-      } catch (err) {
-        console.error("Failed to fetch user info:", err);
-      }
-    };
+    
     const fetchApplications = async () => {
       try {
         const res = await axios.get("/user/applications");
@@ -52,11 +43,12 @@ const Dashboard = () => {
         console.error("Error fetching applications:", error);
       }
     };
-    fetchUser();
+  
+    
     fetchApplications();
   }, []);
 
-  // Map backend data to UI format
+  
 
   const total = applications.length;
   const responded = applications.filter(
