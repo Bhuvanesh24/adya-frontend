@@ -1,9 +1,16 @@
+// src/context/ProtectedRoute.jsx
 import { useAuth } from '../context/AuthContext';
 import { Navigate, useLocation } from 'react-router-dom';
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, checkAuthStatus } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    if (!isAuthenticated && !isLoading) {
+      checkAuthStatus(); // Retry auth check
+    }
+  }, [isAuthenticated, isLoading, checkAuthStatus]);
 
   if (isLoading) {
     return (
@@ -14,7 +21,6 @@ const ProtectedRoute = ({ children }) => {
   }
 
   if (!isAuthenticated) {
-    // Redirect to login with the current location
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

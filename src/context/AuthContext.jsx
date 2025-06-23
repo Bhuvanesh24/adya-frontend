@@ -1,6 +1,8 @@
+// src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from "@/hooks/use-toast";
+import axios from '@/utils/axiosConfig';
 
 const AuthContext = createContext();
 
@@ -17,31 +19,21 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  // Check if user is authenticated on app load
   useEffect(() => {
     checkAuthStatus();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/me', {
-        method: 'GET',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData.user);
-        setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(userData.user));
-      } else {
-        // If token is invalid, clear everything
-        logout(false); // false means don't show logout message
-      }
+      const response = await axios.get('/auth/me');
+      setUser(response.data.user);
+      setIsAuthenticated(true);
     } catch (error) {
       console.error('Auth check failed:', error);
-      logout(false);
+      setUser(null);
+      setIsAuthenticated(false);
     } finally {
       setIsLoading(false);
     }
@@ -49,106 +41,66 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setUser(data.user);
+      const response = await axios.post('/auth/login', { email, password });
+      if (response.data.success) {
+        setUser(response.data.user);
         setIsAuthenticated(true);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
         toast({
           title: "Success",
           description: "Login successful!",
         });
-        
+        navigate('/dashboard');
         return { success: true };
-      } else {
-        toast({
-          title: "Error",
-          description: data.message || "Login failed. Please try again.",
-          variant: "destructive",
-        });
-        return { success: false, message: data.message };
       }
     } catch (error) {
       console.error('Login error:', error);
       toast({
         title: "Error",
-        description: "Network error. Please check your connection and try again.",
+        description: error.response?.data?.message || "Login failed. Please try again.",
         variant: "destructive",
       });
-      return { success: false, message: "Network error" };
+      return { success: false, message: error.response?.data?.message || "Login failed" };
     }
   };
 
   const signup = async (name, email, password) => {
     try {
-      const response = await fetch('http://localhost:5000/api/auth/signup', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ name, email, password }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
+      const response = await axios.post('/auth/signup', { name, email, password });
+      if (response.data.message === "Signup successful") {
         toast({
           title: "Success",
           description: "Account created successfully! Please login to continue.",
         });
         return { success: true };
-      } else {
-        toast({
-          title: "Error",
-          description: data.message || "Signup failed. Please try again.",
-          variant: "destructive",
-        });
-        return { success: false, message: data.message };
       }
     } catch (error) {
       console.error('Signup error:', error);
       toast({
         title: "Error",
-        description: "Network error. Please check your connection and try again.",
+        description: error.response?.data?.message || "Signup failed. Please try again.",
         variant: "destructive",
       });
-      return { success: false, message: "Network error" };
+      return { success: false, message: error.response?.data?.message || "Signup failed" };
     }
   };
 
-  const logout = async (showMessage = true) => {
+  const logout = async () => {
     try {
-      // Call backend logout endpoint to clear the cookie
-      await fetch('http://localhost:5000/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      // Clear frontend state regardless of backend response
+      await axios.post('/auth/logout');
       setUser(null);
       setIsAuthenticated(false);
-      localStorage.removeItem('user');
-      
-      if (showMessage) {
-        toast({
-          title: "Success",
-          description: "Logged out successfully!",
-        });
-      }
+      toast({
+        title: "Success",
+        description: "Logged out successfully!",
+      });
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Error",
+        description: "Logout failed. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
