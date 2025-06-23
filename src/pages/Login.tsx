@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,26 +12,45 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, isAuthenticated } = useAuth();
 
   const from = location.state?.from?.pathname || "/dashboard";
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-
-    const result = await login(email, password);
-    
-    if (result.success) {
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
       navigate(from, { replace: true });
     }
-    
-    setIsLoading(false);
-  };
+  }, [isAuthenticated, navigate, from]);
 
-  const handleGoogleLogin = () => {
-    // Simulate Google login for now
-    console.log("Google login not implemented yet");
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    
+    // Basic validation
+    if (!email.trim() || !password) {
+      alert('Please fill in all fields');
+      return;
+    }
+    
+    if (!email.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+    
+    setIsLoading(true);
+
+    try {
+      const result = await login(email, password);
+      
+      if (result.success) {
+        console.log('Login successful, redirecting to:', from);
+        navigate(from, { replace: true });
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -56,6 +75,7 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="email"
               />
             </div>
             <div className="space-y-2">
@@ -68,6 +88,7 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={isLoading}
+                autoComplete="current-password"
               />
             </div>
             <Link 
@@ -89,8 +110,6 @@ const Login = () => {
               <span className="px-2 bg-white text-gray-500">Or continue with</span>
             </div>
           </div>
-          
-        
           
           <p className="text-center text-sm text-gray-600">
             Don't have an account?{" "}

@@ -8,7 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Bell, Shield, Link, Palette, Trash2 } from "lucide-react";
-
+import { useEffect } from "react";
 const Settings = () => {
   return (
     <Layout>

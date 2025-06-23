@@ -27,13 +27,31 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthStatus = async () => {
     try {
+      console.log('Checking auth status...');
+      
       const response = await axios.get('/auth/me');
-      setUser(response.data.user);
-      setIsAuthenticated(true);
+      
+      console.log('Auth check response:', response.data);
+      
+      if (response.data?.success && response.data?.user) {
+        setUser(response.data.user);
+        setIsAuthenticated(true);
+        console.log('User authenticated:', response.data.user);
+      } else {
+        throw new Error('Invalid auth response');
+      }
     } catch (error) {
       console.error('Auth check failed:', error);
+      
+      // Clear auth state
       setUser(null);
       setIsAuthenticated(false);
+      localStorage.removeItem('authToken');
+      
+      // Only show error if it's not a 401 (expected when not logged in)
+      if (error.response?.status !== 401) {
+        console.error('Unexpected auth check error:', error);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -41,66 +59,117 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      const response = await axios.post('/auth/login', { email, password });
-      if (response.data.success) {
+      setIsLoading(true);
+      console.log('Attempting login for:', email);
+      
+      const response = await axios.post('/auth/login', { 
+        email: email.trim(), 
+        password 
+      });
+      
+      console.log('Login response:', response.data);
+      
+      if (response.data?.success && response.data?.user) {
         setUser(response.data.user);
         setIsAuthenticated(true);
+        
+        // Store token if provided
+        if (response.data.token) {
+          localStorage.setItem('authToken', response.data.token);
+        }
+        
         toast({
           title: "Success",
           description: "Login successful!",
         });
-        navigate('/dashboard');
-        return { success: true };
+        
+        return { success: true, user: response.data.user };
+      } else {
+        throw new Error(response.data?.message || 'Login failed');
       }
     } catch (error) {
       console.error('Login error:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          "Login failed. Please try again.";
+      
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Login failed. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
-      return { success: false, message: error.response?.data?.message || "Login failed" };
+      
+      return { success: false, message: errorMessage };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signup = async (name, email, password) => {
     try {
-      const response = await axios.post('/auth/signup', { name, email, password });
-      if (response.data.message === "Signup successful") {
+      setIsLoading(true);
+      console.log('Attempting signup for:', email);
+      
+      const response = await axios.post('/auth/signup', { 
+        name: name.trim(), 
+        email: email.trim(), 
+        password 
+      });
+      
+      console.log('Signup response:', response.data);
+      
+      if (response.data?.success) {
         toast({
           title: "Success",
           description: "Account created successfully! Please login to continue.",
         });
         return { success: true };
+      } else {
+        throw new Error(response.data?.message || 'Signup failed');
       }
     } catch (error) {
       console.error('Signup error:', error);
+      
+      const errorMessage = error.response?.data?.message || 
+                          error.message || 
+                          "Signup failed. Please try again.";
+      
       toast({
         title: "Error",
-        description: error.response?.data?.message || "Signup failed. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
-      return { success: false, message: error.response?.data?.message || "Signup failed" };
+      
+      return { success: false, message: errorMessage };
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const logout = async () => {
     try {
+      console.log('Attempting logout...');
+      
+      // Try to logout from server
       await axios.post('/auth/logout');
+      
+      console.log('Server logout successful');
+    } catch (error) {
+      console.error('Server logout error:', error);
+      // Continue with local logout even if server logout fails
+    } finally {
+      // Always clear local auth state
       setUser(null);
       setIsAuthenticated(false);
+      localStorage.removeItem('authToken');
+      
       toast({
         title: "Success",
         description: "Logged out successfully!",
       });
+      
       navigate('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-      toast({
-        title: "Error",
-        description: "Logout failed. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
